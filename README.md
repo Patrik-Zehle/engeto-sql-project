@@ -1,36 +1,24 @@
-# Analýza mezd a cen potravin v ČR
+# Analýza dostupnosti potravin a vývoje mezd v ČR
 
-Tento projekt analyzuje data o mzdách a cenách potravin v České republice (období 2006–2018) a zkoumá jejich vztah k HDP.
+Tento projekt se zaměřuje na analýzu dat o mzdách a cenách vybraných potravin v České republice v letech 2006 až 2018. Hlavním cílem je porovnat dynamiku růstu mezd a cen a zjistit, zda existuje závislost na vývoji HDP.
 
-## Výsledky výzkumných otázek
+## Výsledky analýzy
 
-### 1. Rostou mzdy ve všech odvětvích nepřetržitě?
-Ne, mzdy nerostou ve všech odvětvích nepřetržitě.
-- Z dat vyplývá, že v některých odvětvích došlo v určitých letech k meziročnímu poklesu.
-- Tento trend byl patrný zejména v období hospodářské krize a těsně po ní (kolem roku 2009–2013), kdy klesaly mzdy například v odvětví těžby a dobývání nebo ubytování.
+### 1. Vývoj mezd v jednotlivých odvětvích
+Z provedené analýzy vyplývá, že mzdy v České republice dlouhodobě rostou, nicméně tento růst není zcela lineární napříč všemi odvětvími. V datech jsme identifikovali období, kdy došlo k meziročnímu poklesu průměrné mzdy. Tento jev byl patrný zejména v období kolem ekonomické krize kolem roku 2009–2013, kdy pokles zaznamenala odvětví jako těžba a dobývání nebo ubytování, stravování a pohostinství.
 
-### 2. Kolik mléka a chleba si můžeme koupit (2006 vs 2018)?
-Dostupnost obou potravin se zvýšila.
-- **Chléb:** V roce 2006 bylo možné za průměrnou mzdu koupit **1262** kg chleba, v roce 2018 to bylo **1319** kg.
-- **Mléko:** V roce 2006 bylo možné koupit **1409** litrů mléka, v roce 2018 to bylo **1614** litrů.
+### 2. Dostupnost potravin (Chléb a Mléko)
+Při porovnání let 2006 a 2018 je zřejmé, že kupní síla obyvatel vzrostla. Zatímco v roce 2006 si mohl průměrný zaměstnanec za svou mzdu koupit přibližně 1262 kg chleba, v roce 2018 to bylo již 1319 kg. Podobný trend vidíme u mléka, kde v roce 2006 mzda vystačila na 1409 litrů, zatímco v roce 2018 na 1614 litrů. Z toho vyplývá, že dostupnost těchto základních potravin se ve sledovaném období zvýšila.
 
-### 3. Která potravina zdražuje nejpomaleji?
-- Nejpomaleji zdražovala kategorie **Cukr krystal**.
-- Její cena se za sledované období změnila o **-27.52%**.
+### 3. Nejpomalejší zdražování potravin
+Analýza cenových změn ukázala, že ne všechny potraviny zdražují stejným tempem. Nejpomalejší nárůst ceny (respektive zlevnění) jsme zaznamenali u kategorie Cukr krystal. Za sledované období (2006–2018) se cena této kategorie snížila o 27,52 %. To může být způsobeno například změnami na globálním trhu s komoditami, dotacemi či změnou spotřebních návyků.
 
-### 4. Kdy potraviny zdražily výrazně víc než mzdy?
-- Ano, existuje rok, kdy byl nárůst cen potravin výrazně vyšší než růst mezd (rozdíl > 10 %).
-- Byl to rok **2013** (doplň rok, pravděpodobně 2013), kdy ceny potravin vzrostly výrazněji, zatímco mzdy stagnovaly nebo rostly pomaleji.
+### 4. Výrazný nárůst cen oproti mzdám
+Hledali jsme rok, ve kterém by ceny potravin rostly o více než 10 procentních bodů rychleji než mzdy. Z dat vyplývá, že **takový rok v analyzovaném období neexistuje**. Hranice 10 % nebyla překročena v žádném roce. Nejvýraznější rozdíl byl zaznamenán v roce **2013**, kdy ceny potravin rostly o **5,1** % a mzdy o **-1,56** %. Rozdíl tedy činil **6,66** procentních bodů (hodnota pod 10).
 
-### 5. Má HDP vliv na mzdy a ceny?
-- Z analýzy je patrná korelace mezi vývojem HDP a mzdami.
-- V letech, kdy HDP výrazně rostlo (např. 2015–2017), následně rostly i mzdy.
-- Naopak v roce 2009, kdy HDP kleslo (-4,66 %), došlo v následujících letech ke stagnaci růstu mezd.
+### 5. Vliv HDP na mzdy a ceny
+Porovnání vývoje HDP s růstem mezd a cen naznačuje určitou korelaci, která se však často projevuje se zpožděním. V letech silného růstu HDP (např. 2015–2017) sledujeme následný nárůst mezd. Naopak v době recese (rok 2009), kdy HDP výrazně pokleslo (-4,66 %), došlo v následujících letech ke stagnaci růstu mezd. Vývoj cen potravin je volatilnější a kromě HDP jej ovlivňují i další faktory, jako je úroda či globální ceny komodit.
 
 ---
-
-## O datech a metodice
-- Data pocházejí z veřejné databáze Engeto.
-- Pro analýzu byla použita data z let 2006 až 2018, která jsou společná pro mzdy i ceny potravin.
-- Data o HDP a dalších ekonomických ukazatelích byla čerpána z tabulky `economies` a propojena s daty z ČR.
-- Případné chybějící hodnoty (NULL) byly v rámci SQL dotazů odfiltrovány, aby nezkreslily průměry.
+**Metodika a data:**
+Data byla čerpána z databáze Engeto Academy. Pro výpočty byly použity průměrné hodnoty za celé roky. Případné chybějící hodnoty (NULL) byly z analýzy vyloučeny, aby nedošlo ke zkreslení výsledků.

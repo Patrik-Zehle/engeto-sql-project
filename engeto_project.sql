@@ -1,17 +1,27 @@
 /*
  * Projekt: Engeto SQL Project
  * Autor: Patrik Zehle
- * Verze: PostgreSQL Final Fix (včetně přetypování v analýze)
+ * Datum: 2026-01-30
+ * Popis: Analýza dostupnosti potravin, vývoje mezd a HDP v ČR.
  */
 
--- =================================================================
--- 1. ČÁST: VYTVOŘENÍ TABULEK
--- =================================================================
+-- ============================================================================
+-- 1. ČÁST: PŘÍPRAVA DAT (DDL)
+-- ============================================================================
 
+-- Odstranění tabulek, pokud existují, pro čistý start skriptu
 DROP TABLE IF EXISTS t_patrik_zehle_project_SQL_primary_final;
 DROP TABLE IF EXISTS t_patrik_zehle_project_SQL_secondary_final;
 
--- 1.1 Primární tabulka (ČR)
+/*
+ * Vytvoření tabulky t_patrik_zehle_project_SQL_primary_final
+ * Obsahuje data o mzdách a cenách potravin pro ČR sjednocená podle roků.
+ *
+ * Poznámka k filtraci NULL:
+ * V datech se mohou vyskytovat chybějící hodnoty (NULL), které by mohly zkreslit
+ * průměry. Proto je vhodné data filtrovat, případně JOIN zajistí,
+ * že se spojí jen ty roky, které existují v obou sadách.
+ */
 CREATE TABLE t_patrik_zehle_project_SQL_primary_final AS
 SELECT
     pay.payroll_year,
@@ -26,11 +36,13 @@ FROM (
         pl.payroll_year,
         pl.industry_branch_code,
         ib.name AS industry_name,
+        -- Převedení na numeric pro přesné zaokrouhlení na 2 desetinná místa
         ROUND(AVG(pl.value)::numeric, 2) AS avg_wage
     FROM czechia_payroll pl
     JOIN czechia_payroll_industry_branch ib ON pl.industry_branch_code = ib.code
     WHERE pl.value_type_code = 5958 
-      AND pl.calculation_code = 100 
+      AND pl.calculation_code = 100
+      AND pl.value IS NOT NULL -- Eliminace případných chybějících hodnot mezd
     GROUP BY pl.payroll_year, pl.industry_branch_code, ib.name
 ) pay
 JOIN (
@@ -38,14 +50,20 @@ JOIN (
         EXTRACT(YEAR FROM date_from)::int AS price_year,
         category_code,
         cpc.name AS category_name,
+        -- Konzistentní zaokrouhlování na 2 desetinná místa
         ROUND(AVG(value)::numeric, 2) AS avg_price
     FROM czechia_price cp
     JOIN czechia_price_category cpc ON cp.category_code = cpc.code
+    WHERE value IS NOT NULL -- Eliminace chybějících cen
     GROUP BY EXTRACT(YEAR FROM date_from), category_code, cpc.name
 ) price
     ON pay.payroll_year = price.price_year;
 
--- 1.2 Sekundární tabulka (Evropa)
+
+/*
+ * Vytvoření tabulky t_patrik_zehle_project_SQL_secondary_final
+ * Obsahuje makroekonomická data (HDP, Gini, populace) pro evropské státy.
+ */
 CREATE TABLE t_patrik_zehle_project_SQL_secondary_final AS
 SELECT
     c.country,
@@ -58,13 +76,17 @@ FROM economies e
 JOIN countries c ON e.country = c.country
 WHERE c.continent = 'Europe'
   AND e.year BETWEEN 2006 AND 2018
+  AND e.GDP IS NOT NULL -- Pro analýzu HDP potřebujeme jen záznamy, kde je HDP vyplněno
 ORDER BY c.country, e.year;
 
--- =================================================================
--- 2. ČÁST: VÝZKUMNÉ OTÁZKY (Analýza)
--- =================================================================
 
--- Otázka 1: Rostou mzdy ve všech odvětvích?
+-- ============================================================================
+-- 2. ČÁST: ANALYTICKÉ DOTAZY (DQL)
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- ÚKOL 1: Rostou v průběhu let mzdy ve všech odvětvích, nebo v některých klesají?
+-- ----------------------------------------------------------------------------
 SELECT
     industry_name,
     payroll_year,
@@ -74,12 +96,17 @@ SELECT
 FROM t_patrik_zehle_project_SQL_primary_final
 ORDER BY difference ASC;
 
--- Otázka 2: Kolik mléka a chleba si můžeme koupit?
+
+-- ----------------------------------------------------------------------------
+-- ÚKOL 2: Kolik je možné si koupit litrů mléka a kilogramů chleba 
+-- za první a poslední srovnatelné období?
+-- ----------------------------------------------------------------------------
 SELECT
     category_name,
     payroll_year,
-    ROUND(AVG(avg_wage), 2) AS global_avg_wage,
+    ROUND(AVG(avg_wage)::numeric, 2) AS global_avg_wage,
     avg_price,
+    -- Výpočet kupní síly (mzda / cena)
     ROUND((AVG(avg_wage) / avg_price)::numeric, 0) AS amount_to_buy
 FROM t_patrik_zehle_project_SQL_primary_final
 WHERE category_name IN ('Chléb konzumní kmínový', 'Mléko polotučné pasterované')
@@ -87,7 +114,11 @@ WHERE category_name IN ('Chléb konzumní kmínový', 'Mléko polotučné paster
 GROUP BY category_name, payroll_year, avg_price
 ORDER BY category_name, payroll_year;
 
--- Otázka 3: Která kategorie zdražuje nejpomaleji?
+
+-- ----------------------------------------------------------------------------
+-- ÚKOL 3: Která kategorie potravin zdražuje nejpomaleji 
+-- (je u ní nejnižší percentuální meziroční nárůst)?
+-- ----------------------------------------------------------------------------
 WITH price_change AS (
     SELECT
         category_name,
@@ -101,18 +132,23 @@ SELECT
     a.category_name,
     a.avg_price AS price_2006,
     b.avg_price AS price_2018,
+    -- Výpočet procentuálního nárůstu: ((nová - stará) / stará) * 100
     ROUND(((b.avg_price - a.avg_price) / a.avg_price * 100)::numeric, 2) AS price_increase_percent
 FROM price_change a
 JOIN price_change b ON a.category_name = b.category_name
 WHERE a.payroll_year = 2006 AND b.payroll_year = 2018
 ORDER BY price_increase_percent ASC;
 
--- Otázka 4: Kdy potraviny zdražily výrazně víc než mzdy?
+
+-- ----------------------------------------------------------------------------
+-- ÚKOL 4: Existuje rok, ve kterém byl meziroční nárůst cen potravin 
+-- výrazně vyšší než růst mezd (větší než 10 %)?
+-- ----------------------------------------------------------------------------
 WITH totals AS (
     SELECT
         payroll_year,
-        ROUND(AVG(avg_wage), 2) AS total_avg_wage,
-        ROUND(AVG(avg_price), 2) AS total_avg_price
+        ROUND(AVG(avg_wage)::numeric, 2) AS total_avg_wage,
+        ROUND(AVG(avg_price)::numeric, 2) AS total_avg_price
     FROM t_patrik_zehle_project_SQL_primary_final
     GROUP BY payroll_year
 ),
@@ -127,15 +163,21 @@ growth AS (
 )
 SELECT
     payroll_year,
+    -- Procentuální růst mezd
     ROUND(((total_avg_wage - prev_wage) / prev_wage * 100)::numeric, 2) AS wage_growth_pct,
+    -- Procentuální růst cen
     ROUND(((total_avg_price - prev_price) / prev_price * 100)::numeric, 2) AS price_growth_pct,
+    -- Rozdíl (Ceny % - Mzdy %)
     ROUND(((total_avg_price - prev_price) / prev_price * 100)::numeric, 2) -
-    ROUND(((total_avg_wage - prev_wage) / prev_wage * 100)::numeric, 2) AS difference
+    ROUND(((total_avg_wage - prev_wage) / prev_wage * 100)::numeric, 2) AS difference_points
 FROM growth
 WHERE prev_wage IS NOT NULL
-ORDER BY difference DESC;
+ORDER BY difference_points DESC;
 
--- Otázka 5: Vliv HDP (Tady byla ta chyba, nyní opraveno pomocí ::numeric)
+
+-- ----------------------------------------------------------------------------
+-- ÚKOL 5: Má výška HDP vliv na změny ve mzdách a cenách potravin?
+-- ----------------------------------------------------------------------------
 WITH cz_gdp AS (
     SELECT
         year,
@@ -154,7 +196,6 @@ totals AS (
 )
 SELECT
     t.payroll_year,
-    -- Zde přidáno ::numeric pro opravu chyby
     ROUND(((g.GDP - g.prev_gdp) / g.prev_gdp * 100)::numeric, 2) AS gdp_growth_pct,
     ROUND(((t.total_avg_wage - LAG(t.total_avg_wage) OVER (ORDER BY t.payroll_year)) / LAG(t.total_avg_wage) OVER (ORDER BY t.payroll_year) * 100)::numeric, 2) AS wage_growth_pct,
     ROUND(((t.total_avg_price - LAG(t.total_avg_price) OVER (ORDER BY t.payroll_year)) / LAG(t.total_avg_price) OVER (ORDER BY t.payroll_year) * 100)::numeric, 2) AS price_growth_pct
